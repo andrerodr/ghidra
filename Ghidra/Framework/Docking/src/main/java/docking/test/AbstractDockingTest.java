@@ -43,9 +43,8 @@ import docking.action.ToggleDockingActionIf;
 import docking.actions.DockingToolActions;
 import docking.dnd.GClipboard;
 import docking.framework.DockingApplicationConfiguration;
-import docking.menu.DockingToolbarButton;
-import docking.widgets.MultiLineLabel;
-import docking.widgets.OptionDialog;
+import docking.menu.DialogToolbarButton;
+import docking.widgets.*;
 import docking.widgets.filechooser.GhidraFileChooser;
 import docking.widgets.table.threaded.ThreadedTableModel;
 import docking.widgets.tree.GTree;
@@ -158,7 +157,7 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 		Iterator<Window> iter = winList.iterator();
 		while (iter.hasNext()) {
 			Window w = iter.next();
-			if (!w.isVisible()) {
+			if (!w.isShowing()) {
 				continue;
 			}
 			String titleForWindow = getTitleForWindow(w);
@@ -178,7 +177,7 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 		Iterator<Window> iter = winList.iterator();
 		while (iter.hasNext()) {
 			Window w = iter.next();
-			if (!w.isVisible()) {
+			if (!w.isShowing()) {
 				continue;
 			}
 			String titleForWindow = getTitleForWindow(w);
@@ -187,6 +186,22 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Waits for the system error dialog to appear
+	 * @return the dialog
+	 */
+	public static AbstractErrDialog waitForErrorDialog() {
+		return waitForDialogComponent(AbstractErrDialog.class);
+	}
+
+	/**
+	 * Waits for the system info dialog to appear
+	 * @return the dialog
+	 */
+	public static OkDialog waitForInfoDialog() {
+		return waitForDialogComponent(OkDialog.class);
 	}
 
 	public static Window waitForWindow(Class<?> windowClass) {
@@ -205,7 +220,7 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 			Iterator<Window> it = winList.iterator();
 			while (it.hasNext()) {
 				Window w = it.next();
-				if (windowClass.isAssignableFrom(w.getClass()) && w.isVisible()) {
+				if (windowClass.isAssignableFrom(w.getClass()) && w.isShowing()) {
 					return w;
 				}
 			}
@@ -217,25 +232,9 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 	}
 
 	public static Window waitForWindowByTitleContaining(String text) {
-		return waitForWindowByTitleContaining(null, text, DEFAULT_WAIT_TIMEOUT);
-	}
-
-	/**
-	 * Deprecated
-	 * @param parentWindow the window; unused 
-	 * @param text the window title text part
-	 * @param timeoutMS the timeout; unused
-	 * @return window
-	 * @deprecated Instead call one of the methods that does not take a timeout
-	 *             (we are standardizing timeouts).  The timeouts passed to this method will
-	 *             be ignored in favor of the standard value.
-	 */
-	@Deprecated
-	public static Window waitForWindowByTitleContaining(Window parentWindow, String text,
-			int timeoutMS) {
 
 		// try at least one time
-		Window window = getWindowByTitleContaining(parentWindow, text);
+		Window window = getWindowByTitleContaining(null, text);
 		if (window != null) {
 			return window;// we found it...no waiting required
 		}
@@ -244,7 +243,7 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 		int timeout = DEFAULT_WAIT_TIMEOUT;
 		while (totalTime <= timeout) {
 
-			window = getWindowByTitleContaining(parentWindow, text);
+			window = getWindowByTitleContaining(null, text);
 			if (window != null) {
 				return window;
 			}
@@ -254,43 +253,6 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 
 		throw new AssertionFailedError(
 			"Timed-out waiting for window containg title '" + text + "'");
-	}
-
-	/**
-	 * Waits for a window with the given name.  If <code>parentWindow</code> is not null, then it
-	 * will be used to find subordinate windows.  If <code>parentWindow</code> is null, then all
-	 * existing frames will be searched.
-	 *
-	 * @param parentWindow The parent of the window for which to search, or null to search all
-	 *        open frames
-	 * @param title The title of the window for which to search
-	 * @param timeoutMS The timeout after which this method will wait no more
-	 * @return The window, if found, null otherwise.
-	 *
-	 * @deprecated Instead call one of the methods that does not take a timeout
-	 *             (we are standardizing timeouts).  The timeouts passed to this method will
-	 *             be ignored in favor of the standard value.
-	 */
-	@Deprecated
-	public static Window waitForWindow(Window parentWindow, String title, int timeoutMS) {
-
-		Window window = getWindowByTitle(parentWindow, title);
-		if (window != null) {
-			return window;// we found it...no waiting required
-		}
-
-		int totalTime = 0;
-		int timeout = DEFAULT_WAIT_TIMEOUT;
-		while (totalTime <= timeout) {
-
-			window = getWindowByTitle(parentWindow, title);
-			if (window != null) {
-				return window;
-			}
-
-			totalTime += sleep(DEFAULT_WAIT_DELAY);
-		}
-		throw new AssertionFailedError("Timed-out waiting for window with title '" + title + "'");
 	}
 
 	/**
@@ -348,7 +310,7 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 			Set<Window> allWindows = getAllWindows();
 			for (Window window : allWindows) {
 				String windowName = window.getName();
-				if (name.equals(windowName) && window.isVisible()) {
+				if (name.equals(windowName) && window.isShowing()) {
 					return window;
 				}
 
@@ -360,13 +322,12 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 	}
 
 	/**
-	 * Check for and display message component text associated with
-	 * ErrLogDialog and OptionDialog windows.
+	 * Check for and display message component text associated with OptionDialog windows 
 	 * @param w any window
 	 * @return the message string if one can be found; <code>null</code> otherwise
 	 */
-	public static String checkMessageDisplay(Window w) {
-		Component c = findComponentByName(w, "MESSAGE-COMPONENT");
+	public static String getMessageText(Window w) {
+		Component c = findComponentByName(w, OptionDialog.MESSAGE_COMPONENT_NAME);
 		if (c instanceof JLabel) {
 			return ((JLabel) c).getText();
 		}
@@ -468,7 +429,7 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 				// note: we use System.err here to get more obvious errors in the console
 				String title = getDebugTitleForWindow(window);
 				System.err.println("DockingTestCase - Forced window closure: " + title);
-				String errorMessage = checkMessageDisplay(window);
+				String errorMessage = getMessageText(window);
 				if (errorMessage != null) {
 					System.err.println("\tWindow error message: " + errorMessage);
 				}
@@ -543,7 +504,7 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 			Iterator<Window> iter = winList.iterator();
 			while (iter.hasNext()) {
 				Window w = iter.next();
-				if ((w instanceof JDialog) && w.isVisible()) {
+				if ((w instanceof JDialog) && w.isShowing()) {
 					String windowTitle = getTitleForWindow(w);
 					if (title.equals(windowTitle)) {
 						return (JDialog) w;
@@ -578,7 +539,7 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 			Iterator<Window> iter = winList.iterator();
 			while (iter.hasNext()) {
 				Window w = iter.next();
-				if ((w instanceof JDialog) && w.isVisible()) {
+				if ((w instanceof JDialog) && w.isShowing()) {
 					String windowTitle = getTitleForWindow(w);
 					if (title.equals(windowTitle)) {
 						return (JDialog) w;
@@ -721,10 +682,6 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 			Class<T> ghidraClass) {
 
 		if (!(window instanceof DockingDialog)) {
-			return null;
-		}
-
-		if (!window.isVisible()) {
 			return null;
 		}
 
@@ -1136,7 +1093,8 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 		Set<DockingActionIf> ownerActions = tool.getDockingActionsByOwnerName(owner);
 		return ownerActions.stream()
 				.filter(action -> action.getName().equals(name))
-				.collect(Collectors.toSet());
+				.collect(
+					Collectors.toSet());
 	}
 
 	/**
@@ -1188,7 +1146,7 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 		if (actions.size() > 1) {
 			// This shouldn't happen
 			throw new AssertionFailedError(
-				"Found more than one action for name '" + name + " (" + owner + ")'");
+				"Found more than one action for name '" + name + " (" + owner + ")'\n\t" + actions);
 		}
 
 		return CollectionUtils.any(actions);
@@ -1430,9 +1388,9 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 			if (element instanceof JButton) {
 
 				JButton button = (JButton) element;
-				if (button instanceof DockingToolbarButton) {
+				if (button instanceof DialogToolbarButton) {
 					DockingActionIf dockingAction =
-						((DockingToolbarButton) button).getDockingAction();
+						((DialogToolbarButton) button).getDockingAction();
 					if (dockingAction.getName().equals(name)) {
 						return button;
 					}
@@ -1717,6 +1675,21 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 	}
 
 	/**
+	 * Fires a {@link KeyListener#keyPressed(KeyEvent)}, 
+	 * {@link KeyListener#keyTyped(KeyEvent)}
+	 * and {@link KeyListener#keyReleased(KeyEvent)} for the given key stroke
+	 * 
+	 * @param c the destination component
+	 * @param ks the key stroke
+	 */
+	public static void triggerKey(Component c, KeyStroke ks) {
+		int modifiers = ks.getModifiers();
+		char keyChar = ks.getKeyChar();
+		int keyCode = ks.getKeyCode();
+		triggerKey(c, modifiers, keyCode, keyChar);
+	}
+
+	/**
 	 * Fires a {@link KeyListener#keyPressed(KeyEvent)}, {@link KeyListener#keyTyped(KeyEvent)}
 	 * and {@link KeyListener#keyReleased(KeyEvent)} for the given key code and char.
 	 *
@@ -1823,25 +1796,6 @@ public abstract class AbstractDockingTest extends AbstractGenericTest {
 		ERROR_DISPLAY_WRAPPER.setErrorDisplayDelegate(display);
 		Msg.setErrorDisplay(ERROR_DISPLAY_WRAPPER);
 		useErrorGUI = enable;
-	}
-
-	/**
-	 * Signals that the client expected the System Under Test (SUT) to report errors.  Use this
-	 * when you wish to verify that errors are reported and you do not want those errors to
-	 * fail the test.  The default value for this setting is false, which means that any
-	 * errors reported will fail the running test.
-	 *
-	 * @param expected true if errors are expected.
-	 */
-	public static void setErrorsExpected(boolean expected) {
-		if (expected) {
-			Msg.error(AbstractDockingTest.class, ">>>>>>>>>>>>>>>> Expected Exception");
-			ConcurrentTestExceptionHandler.disable();
-		}
-		else {
-			Msg.error(AbstractDockingTest.class, "<<<<<<<<<<<<<<<< End Expected Exception");
-			ConcurrentTestExceptionHandler.enable();
-		}
 	}
 
 	/**

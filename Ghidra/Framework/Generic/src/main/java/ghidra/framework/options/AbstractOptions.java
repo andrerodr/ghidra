@@ -116,8 +116,8 @@ public abstract class AbstractOptions implements Options {
 				"Attempted to register an unsupported object: " + defaultValue.getClass());
 		}
 
-		registerOption(optionName, OptionType.getOptionType(defaultValue), defaultValue, help,
-			description);
+		OptionType type = OptionType.getOptionType(defaultValue);
+		registerOption(optionName, type, defaultValue, help, description);
 	}
 
 	@Override
@@ -150,16 +150,44 @@ public abstract class AbstractOptions implements Options {
 			valueMap.put(optionName, option);
 			return;
 		}
-		else if (!currentOption.isRegistered()) {
-			Option option =
+
+		Option newOption = null;
+		if (currentOption.isRegistered()) {
+			// Registered again
+			newOption =
+				copyRegisteredOption(currentOption, type, description, defaultValue, help, editor);
+		}
+		else {
+			// option was accessed, but not registered
+			newOption =
 				createRegisteredOption(optionName, type, description, help, defaultValue, editor);
-			option.setCurrentValue(currentOption.getCurrentValue());
-			valueMap.put(optionName, option);
-			return;
 		}
 
-		// TODO: We probably don't need to do anything special if we are re-registering an
-		// option, which is what the below code handles.
+		copyCurrentValue(currentOption, newOption);
+		valueMap.put(optionName, newOption);
+	}
+
+	protected void copyCurrentValue(Option currentOption, Option newOption) {
+		if (currentOption.isDefault()) {
+			return;  // don't copy the current value if it is just the old default.
+		}
+
+		Object currentValue = currentOption.getCurrentValue();
+		OptionType type = currentOption.getOptionType();
+		if (!isNullable(type) && currentValue == null) {
+			return; // not allowed to be null
+		}
+
+		// null is allowed; null can represent a valid 'cleared' state
+		newOption.setCurrentValue(currentValue);
+
+	}
+
+	private Option copyRegisteredOption(Option currentOption, OptionType type,
+			String description, Object defaultValue, HelpLocation help, PropertyEditor editor) {
+
+		// We probably don't need to do anything special if we  are re-registering an option, 
+		// which is what the below code handles
 		String oldDescription = currentOption.getDescription();
 		HelpLocation oldHelp = currentOption.getHelpLocation();
 		Object oldDefaultValue = currentOption.getDefaultValue();
@@ -170,13 +198,9 @@ public abstract class AbstractOptions implements Options {
 		Object newDefaultValue = oldDefaultValue == null ? defaultValue : oldDefaultValue;
 		PropertyEditor newEditor = oldEditor == null ? editor : oldEditor;
 
-		Option newOption = createRegisteredOption(optionName, type, newDescripiton, newHelpLocation,
+		String optionName = currentOption.getName();
+		return createRegisteredOption(optionName, type, newDescripiton, newHelpLocation,
 			newDefaultValue, newEditor);
-		Object currentValue = currentOption.getCurrentValue();
-		if (currentValue != null) {
-			newOption.setCurrentValue(currentValue);
-		}
-		valueMap.put(optionName, newOption);
 	}
 
 	@Override
@@ -249,6 +273,10 @@ public abstract class AbstractOptions implements Options {
 		}
 
 		OptionType type = option.getOptionType();
+		return isNullable(type);
+	}
+
+	private boolean isNullable(OptionType type) {
 		switch (type) {
 
 			// objects can be null
@@ -296,86 +324,156 @@ public abstract class AbstractOptions implements Options {
 	public boolean getBoolean(String optionName, boolean defaultValue) {
 		Option option =
 			getOption(optionName, OptionType.BOOLEAN_TYPE, Boolean.valueOf(defaultValue));
-		return (Boolean) option.getValue(defaultValue);
+		try {
+			return (Boolean) option.getValue(defaultValue);
+		}
+		catch (ClassCastException e) {
+			return defaultValue;
+		}
 	}
 
 	@Override
 	public byte[] getByteArray(String optionName, byte[] defaultValue) {
 		Option option = getOption(optionName, OptionType.BYTE_ARRAY_TYPE, defaultValue);
-		return (byte[]) option.getValue(defaultValue);
+		try {
+			return (byte[]) option.getValue(defaultValue);
+		}
+		catch (ClassCastException e) {
+			return defaultValue;
+		}
 	}
 
 	@Override
 	public int getInt(String optionName, int defaultValue) {
 		Option option = getOption(optionName, OptionType.INT_TYPE, defaultValue);
-		return (Integer) option.getValue(defaultValue);
+		try {
+			return (Integer) option.getValue(defaultValue);
+		}
+		catch (ClassCastException e) {
+			return defaultValue;
+		}
 	}
 
 	@Override
 	public double getDouble(String optionName, double defaultValue) {
 		Option option = getOption(optionName, OptionType.DOUBLE_TYPE, defaultValue);
-		return (Double) option.getValue(defaultValue);
+		try {
+			return (Double) option.getValue(defaultValue);
+		}
+		catch (ClassCastException e) {
+			return defaultValue;
+		}
 	}
 
 	@Override
 	public float getFloat(String optionName, float defaultValue) {
 		Option option = getOption(optionName, OptionType.FLOAT_TYPE, defaultValue);
-		return (Float) option.getValue(defaultValue);
+		try {
+			return (Float) option.getValue(defaultValue);
+		}
+		catch (ClassCastException e) {
+			return defaultValue;
+		}
 	}
 
 	@Override
 	public long getLong(String optionName, long defaultValue) {
 		Option option = getOption(optionName, OptionType.LONG_TYPE, defaultValue);
-		return (Long) option.getValue(defaultValue);
+		try {
+			return (Long) option.getValue(defaultValue);
+		}
+		catch (ClassCastException e) {
+			return defaultValue;
+		}
 	}
 
 	@Override
 	public CustomOption getCustomOption(String optionName, CustomOption defaultValue) {
 		Option option = getOption(optionName, OptionType.CUSTOM_TYPE, defaultValue);
-		return (CustomOption) option.getValue(defaultValue);
+		try {
+			return (CustomOption) option.getValue(defaultValue);
+		}
+		catch (ClassCastException e) {
+			return defaultValue;
+		}
 	}
 
 	@Override
 	public Color getColor(String optionName, Color defaultValue) {
 		Option option = getOption(optionName, OptionType.COLOR_TYPE, defaultValue);
-		return (Color) option.getValue(defaultValue);
+		try {
+			return (Color) option.getValue(defaultValue);
+		}
+		catch (ClassCastException e) {
+			return defaultValue;
+		}
 	}
 
 	@Override
 	public File getFile(String optionName, File defaultValue) {
 		Option option = getOption(optionName, OptionType.FILE_TYPE, defaultValue);
-		return (File) option.getValue(defaultValue);
+		try {
+			return (File) option.getValue(defaultValue);
+		}
+		catch (ClassCastException e) {
+			return defaultValue;
+		}
 	}
 
 	@Override
 	public Font getFont(String optionName, Font defaultValue) {
 		Option option = getOption(optionName, OptionType.FONT_TYPE, defaultValue);
-		return (Font) option.getValue(defaultValue);
+		try {
+			return (Font) option.getValue(defaultValue);
+		}
+		catch (ClassCastException e) {
+			return defaultValue;
+		}
 	}
 
 	@Override
 	public Date getDate(String optionName, Date defaultValue) {
 		Option option = getOption(optionName, OptionType.DATE_TYPE, defaultValue);
-		return (Date) option.getValue(defaultValue);
+		try {
+			return (Date) option.getValue(defaultValue);
+		}
+		catch (ClassCastException e) {
+			return defaultValue;
+		}
 	}
 
 	@Override
 	public KeyStroke getKeyStroke(String optionName, KeyStroke defaultValue) {
 		Option option = getOption(optionName, OptionType.KEYSTROKE_TYPE, defaultValue);
-		return (KeyStroke) option.getValue(defaultValue);
+		try {
+			return (KeyStroke) option.getValue(defaultValue);
+		}
+		catch (ClassCastException e) {
+			return defaultValue;
+		}
 	}
 
 	@Override
 	public String getString(String optionName, String defaultValue) {
 		Option option = getOption(optionName, OptionType.STRING_TYPE, defaultValue);
-		return (String) option.getValue(defaultValue);
+		try {
+			return (String) option.getValue(defaultValue);
+		}
+		catch (ClassCastException e) {
+			return defaultValue;
+		}
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T extends Enum<T>> T getEnum(String optionName, T defaultValue) {
 		Option option = getOption(optionName, OptionType.ENUM_TYPE, defaultValue);
-		return (T) option.getValue(defaultValue);
+		try {
+			return (T) option.getValue(defaultValue);
+		}
+		catch (ClassCastException e) {
+			return defaultValue;
+		}
 	}
 
 	@Override

@@ -412,19 +412,11 @@ public class GTreeNodeTest {
 		events.clear();
 		node.unloadChildren();
 		assertFalse(node.isLoaded());
-		assertTrue(events.isEmpty());
-	}
 
-	@Test
-	public void testReloadOnLazyNode() throws CancelledException {
-		GTreeLazyNode node = new LazyTestNode("test", 2);
-		node.loadAll(TaskMonitor.DUMMY);
-		assertTrue(node.isLoaded());
-
-		events.clear();
-		node.reload();
-		assertFalse(node.isLoaded());
-		assertFalse(events.isEmpty());
+		assertEquals(1, events.size());
+		TestEvent event = events.get(0);
+		assertEquals(EventType.STRUCTURE_CHANGED, event.type);
+		assertEquals(node, event.node);
 	}
 
 	@Test
@@ -481,7 +473,7 @@ public class GTreeNodeTest {
 
 		@Override
 		public boolean acceptsNode(GTreeNode node) {
-			return node.getName().contains(text);
+			return node.getDisplayText().contains(text);
 		}
 
 		@Override
@@ -543,7 +535,6 @@ public class GTreeNodeTest {
 			events.add(new TestEvent(EventType.NODE_REMOVED, this, removedNode, -1));
 		}
 	}
-
 
 	enum EventType {
 		STRUCTURE_CHANGED, NODE_CHANGED, NODE_ADDED, NODE_REMOVED

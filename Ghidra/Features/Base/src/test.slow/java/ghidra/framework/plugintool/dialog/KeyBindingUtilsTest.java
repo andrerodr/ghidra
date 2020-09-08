@@ -19,6 +19,7 @@ import static org.junit.Assert.*;
 
 import java.awt.Rectangle;
 import java.awt.Window;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.io.*;
 import java.util.*;
@@ -29,7 +30,6 @@ import javax.swing.tree.TreePath;
 
 import org.junit.*;
 
-import docking.ComponentProvider;
 import docking.action.DockingActionIf;
 import docking.actions.KeyBindingUtils;
 import docking.options.editor.OptionsDialog;
@@ -43,7 +43,6 @@ import generic.io.NullWriter;
 import ghidra.app.plugin.core.codebrowser.CodeBrowserPlugin;
 import ghidra.app.plugin.core.data.DataPlugin;
 import ghidra.app.plugin.core.datamgr.DataTypeManagerPlugin;
-import ghidra.app.plugin.core.equate.EquateTablePlugin;
 import ghidra.app.plugin.core.function.FunctionPlugin;
 import ghidra.app.plugin.core.memory.MemoryMapPlugin;
 import ghidra.app.plugin.core.navigation.GoToAddressLabelPlugin;
@@ -112,21 +111,8 @@ public class KeyBindingUtilsTest extends AbstractGhidraHeadedIntegrationTest {
 		tool.addPlugin(DataTypeManagerPlugin.class.getName());
 		tool.addPlugin(DataPlugin.class.getName());
 		tool.addPlugin(FunctionPlugin.class.getName());
-		tool.addPlugin(EquateTablePlugin.class.getName());
-
-		// Unusual Code: Some actions don't get created until the table is shown (like GTable
-		// actions). Show a provider that has a table so that the actions will get correctly
-		// loaded into the key bindings panel
-		showTableProvider();
 
 		debug("two");
-	}
-
-	private void showTableProvider() {
-		EquateTablePlugin eqp = env.getPlugin(EquateTablePlugin.class);
-		ComponentProvider provider = (ComponentProvider) getInstanceField("provider", eqp);
-		env.showTool();
-		tool.showComponentProvider(provider, true);
 	}
 
 	private void debug(String message) {
@@ -150,6 +136,33 @@ public class KeyBindingUtilsTest extends AbstractGhidraHeadedIntegrationTest {
 		debug("a");
 
 		debug.close();
+	}
+
+	@Test
+	public void testParseKeyStroke() {
+
+		KeyStroke ks = KeyStroke.getKeyStroke(KeyEvent.VK_V, 0);
+		String parsed = KeyBindingUtils.parseKeyStroke(ks);
+		assertEquals("V", parsed);
+
+		ks = KeyStroke.getKeyStroke('v');
+		parsed = KeyBindingUtils.parseKeyStroke(ks);
+		assertEquals("v", parsed);
+
+		int modifiers = InputEvent.SHIFT_DOWN_MASK | InputEvent.CTRL_DOWN_MASK;
+		ks = KeyStroke.getKeyStroke(KeyEvent.VK_V, modifiers);
+		parsed = KeyBindingUtils.parseKeyStroke(ks);
+		assertEquals("Ctrl-Shift-V", parsed);
+
+		ks = KeyStroke.getKeyStroke(KeyEvent.VK_V, modifiers, true);
+		parsed = KeyBindingUtils.parseKeyStroke(ks);
+		assertEquals("Ctrl-Shift-V", parsed);
+
+		JButton b = new JButton();
+		KeyEvent event = new KeyEvent(b, KeyEvent.KEY_PRESSED, 1, modifiers, KeyEvent.VK_V, 'v');
+		ks = KeyStroke.getKeyStrokeForEvent(event);
+		parsed = KeyBindingUtils.parseKeyStroke(ks);
+		assertEquals("Ctrl-Shift-V", parsed);
 	}
 
 	/*
@@ -178,14 +191,13 @@ public class KeyBindingUtilsTest extends AbstractGhidraHeadedIntegrationTest {
 
 		debug("d");
 
-		// now repeat the above test with changing some values before writing
-		// out
+		// now repeat the above test with changing some values before writing out
 		invokeInstanceMethod("putObject", defaultKeyBindings,
 			new Class[] { String.class, Object.class },
-			new Object[] { "test1", KeyStroke.getKeyStroke(65, 0) });
+			new Object[] { "TestAction1 (Owner1)", KeyStroke.getKeyStroke(65, 0) });
 		invokeInstanceMethod("putObject", defaultKeyBindings,
 			new Class[] { String.class, Object.class },
-			new Object[] { "test2", KeyStroke.getKeyStroke(66, 0) });
+			new Object[] { "TestAction2 (Owner 2)", KeyStroke.getKeyStroke(66, 0) });
 
 		debug("e");
 
@@ -364,7 +376,7 @@ public class KeyBindingUtilsTest extends AbstractGhidraHeadedIntegrationTest {
 	private void reopenTool(PluginTool tool2) {
 		runSwing(() -> {
 			ToolServices services = tool.getProject().getToolServices();
-			tool = (PluginTool) services.launchTool(tool.getName(), null);
+			tool = services.launchTool(tool.getName(), null);
 		});
 		assertNotNull(tool);
 	}
@@ -379,7 +391,6 @@ public class KeyBindingUtilsTest extends AbstractGhidraHeadedIntegrationTest {
 
 	private void setKeyBindingsUpDialog() throws Exception {
 		env.showTool();
-		showTableProvider();
 		setKeyBindingsUpDialog(tool);
 	}
 

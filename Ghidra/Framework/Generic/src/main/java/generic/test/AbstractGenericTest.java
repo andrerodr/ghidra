@@ -248,8 +248,9 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 	 */
 	public static Set<Window> getAllWindows() {
 		Set<Window> set = new HashSet<>();
-		Frame sharedOwnerFrame = (Frame) AppContext.getAppContext().get(
-			new StringBuffer("SwingUtilities.sharedOwnerFrame"));
+		Frame sharedOwnerFrame = (Frame) AppContext.getAppContext()
+				.get(
+					new StringBuffer("SwingUtilities.sharedOwnerFrame"));
 		if (sharedOwnerFrame != null) {
 			set.addAll(getAllWindows(sharedOwnerFrame));
 		}
@@ -1093,8 +1094,24 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 		return ref.get();
 	}
 
-	public static void runSwing(Runnable runnable) {
-		runSwing(runnable, true);
+	/**
+	 * Run the given code snippet on the Swing thread and wait for it to finish
+	 * @param r the runnable code snippet
+	 */
+	public static void runSwing(Runnable r) {
+		runSwing(r, true);
+	}
+
+	/**
+	 * Run the given code snippet on the Swing thread later, not blocking the current thread.  Use
+	 * this if the code snippet causes a blocking operation.
+	 * 
+	 * <P>This is a shortcut for <code>runSwing(r, false);</code>.
+	 * 
+	 * @param r the runnable code snippet
+	 */
+	public void runSwingLater(Runnable r) {
+		runSwing(r, false);
 	}
 
 	/**
@@ -1102,7 +1119,7 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 	 * an exception 
 	 * @param runnable the runnable
 	 * @param wait true signals to wait for the Swing operation to finish
-	 * @throws Throwable any excption that is thrown on the Swing thread
+	 * @throws Throwable any exception that is thrown on the Swing thread
 	 */
 	public static void runSwingWithExceptions(Runnable runnable, boolean wait) throws Throwable {
 
@@ -1118,10 +1135,6 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 	}
 
 	public static void runSwing(Runnable runnable, boolean wait) {
-		if (SwingUtilities.isEventDispatchThread()) {
-			runnable.run();
-			return;
-		}
 
 		if (wait) {
 			runSwingAndWait(runnable);
@@ -1516,6 +1529,29 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 	}
 
 	/**
+	 * Signals that the client expected the System Under Test (SUT) to report errors.  Use this
+	 * when you wish to verify that errors are reported and you do not want those errors to
+	 * fail the test.  The default value for this setting is false, which means that any
+	 * errors reported will fail the running test.
+	 *
+	 * @param expected true if errors are expected.
+	 */
+	public static void setErrorsExpected(boolean expected) {
+		if (expected) {
+			Msg.error(AbstractGenericTest.class, ">>>>>>>>>>>>>>>> Expected Exception");
+			ConcurrentTestExceptionHandler.disable();
+		}
+		else {
+			Msg.error(AbstractGenericTest.class, "<<<<<<<<<<<<<<<< End Expected Exception");
+			ConcurrentTestExceptionHandler.enable();
+		}
+	}
+
+//==================================================================================================
+// Swing Methods
+//==================================================================================================	
+
+	/**
 	 * Waits for the Swing thread to process any pending events. This method
 	 * also waits for any {@link SwingUpdateManager}s that have pending events
 	 * to be flushed.
@@ -1659,7 +1695,7 @@ public abstract class AbstractGenericTest extends AbstractGTest {
 
 		if (SwingUtilities.isEventDispatchThread()) {
 			Msg.error(AbstractGenericTest.class,
-				"Incorrectly called yeildToSwing() from the Swing thread");
+				"Incorrectly called yieldToSwing() from the Swing thread");
 			return; // shouldn't happen
 		}
 
